@@ -1,0 +1,65 @@
+# -----------------------------------------------------------
+# ArgoCD Application - GitOps Configuration
+# -----------------------------------------------------------
+# ArgoCD is a GitOps tool. It watches a Git repository and
+# automatically applies any changes to your Kubernetes cluster.
+#
+# GitOps workflow:
+#   1. You push changes to the 'gitops/' folder in your Git repo
+#   2. ArgoCD detects the change (or checks every 3 minutes)
+#   3. ArgoCD applies the changes to your cluster
+#   4. If cluster state drifts from Git, ArgoCD can auto-fix it
+#
+# This is the "argocd-app.yaml" - it tells ArgoCD where to watch
+# and where to deploy.
+# -----------------------------------------------------------
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: llm-devops-platform
+  # ArgoCD itself always runs in the argocd namespace
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: llm-devops-platform
+
+spec:
+  # Which ArgoCD instance manages this app
+  project: default
+
+  # -----------------------------------------------------------
+  # Source: WHERE ArgoCD reads the manifests FROM (your Git repo)
+  # -----------------------------------------------------------
+  source:
+    # REPLACE THIS with your actual GitHub/GitLab repository URL
+    repoURL: https://github.com/YOUR_USERNAME/llm-devops-platform.git
+
+    # Which branch to watch
+    targetRevision: HEAD
+
+    # Which folder in the repo contains the manifests
+    # ArgoCD watches this folder for changes
+    path: gitops
+
+  # -----------------------------------------------------------
+  # Destination: WHERE ArgoCD deploys TO (your Kubernetes cluster)
+  # -----------------------------------------------------------
+  destination:
+    # Deploy to the local cluster where ArgoCD is running
+    server: https://kubernetes.default.svc
+
+    # Deploy into our devops-platform namespace
+    namespace: devops-platform
+
+  # -----------------------------------------------------------
+  # Sync Policy: HOW ArgoCD applies changes
+  # -----------------------------------------------------------
+  syncPolicy:
+    automated:
+      # Automatically deploy when Git changes are detected
+      prune: true      # Delete resources removed from Git
+      selfHeal: true   # Fix manual changes to match Git
+
+    syncOptions:
+      # Create the namespace if it doesn't exist
+      - CreateNamespace=true

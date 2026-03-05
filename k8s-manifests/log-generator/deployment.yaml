@@ -1,0 +1,85 @@
+# -----------------------------------------------------------
+# Deployment for log-generator service
+# -----------------------------------------------------------
+# A Deployment tells Kubernetes:
+#   - What container image to run
+#   - How many copies (replicas) to run
+#   - What environment variables to set
+#   - How to check if the pod is healthy
+#
+# Kubernetes will automatically restart pods if they crash!
+# -----------------------------------------------------------
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-generator
+  namespace: devops-platform
+  labels:
+    app: log-generator
+spec:
+  # Run 1 instance of this service
+  replicas: 1
+
+  # This selector tells the Deployment which Pods it manages
+  # Must match the labels in the Pod template below
+  selector:
+    matchLabels:
+      app: log-generator
+
+  template:
+    metadata:
+      labels:
+        app: log-generator
+      annotations:
+        # Tell Prometheus to scrape metrics from this pod
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: log-generator
+          # Replace with your Docker Hub username: yourusername/log-generator:latest
+          image: log-generator:latest
+
+          # Never pull from registry if image exists locally
+          # (useful for local development with kind)
+          imagePullPolicy: IfNotPresent
+
+          # Ports this container exposes
+          ports:
+            - name: http-api
+              containerPort: 5000   # Flask log API
+            - name: metrics
+              containerPort: 8000   # Prometheus metrics
+
+          # Environment variables passed into the container
+          env:
+            - name: FLASK_ENV
+              value: "production"
+
+          # Resource limits prevent one pod from consuming all cluster resources
+          resources:
+            requests:
+              memory: "64Mi"    # Minimum memory reserved
+              cpu: "50m"        # 50 millicores = 0.05 CPU core
+            limits:
+              memory: "256Mi"   # Maximum memory allowed
+              cpu: "200m"       # Maximum CPU allowed
+
+          # Liveness probe: if this fails, Kubernetes RESTARTS the pod
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15   # Wait 15s before first check
+            periodSeconds: 30         # Check every 30 seconds
+            failureThreshold: 3       # Restart after 3 consecutive failures
+
+          # Readiness probe: if this fails, pod is removed from load balancer
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10

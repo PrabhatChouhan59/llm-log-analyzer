@@ -1,0 +1,110 @@
+# -----------------------------------------------------------
+# Deployment for Ollama (Local AI Model Server)
+# -----------------------------------------------------------
+# Ollama is the AI runtime. It:
+# 1. Downloads and manages AI model files
+# 2. Serves an HTTP API at port 11434
+# 3. Processes prompts using the loaded AI model
+#
+# The LLM Analyzer sends prompts to this service and gets
+# AI-generated log analysis back.
+# -----------------------------------------------------------
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ollama
+  namespace: devops-platform
+  labels:
+    app: ollama
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ollama
+  template:
+    metadata:
+      labels:
+        app: ollama
+    spec:
+      # Give Ollama extra time to start (model loading takes time)
+      terminationGracePeriodSeconds: 60
+
+      containers:
+        - name: ollama
+          # Official Ollama Docker image
+          image: ollama/ollama:latest
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: api
+              containerPort: 11434   # Ollama's API port
+
+          # Ollama stores downloaded models here
+          # We mount our PVC at this path so models persist
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama
+
+          resources:
+            requests:
+              memory: "2Gi"       # Ollama needs significant RAM
+              cpu: "500m"
+            limits:
+              memory: "8Gi"       # Allow up to 8GB for larger models
+              cpu: "2000m"        # 2 CPU cores max
+
+          # Wait for Ollama to respond on its API port before marking healthy
+          livenessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 60   # Give Ollama 60s to start up
+            periodSeconds: 30
+            failureThreshold: 5
+
+          readinessProbe:
+            httpGet:
+              path: /api/tags
+              port: 11434
+            initialDelaySeconds: 30
+            periodSeconds: 20
+
+      # Attach the PVC as a named volume
+      volumes:
+        - name: ollama-storage
+          persistentVolumeClaim:
+            claimName: ollama-pvc
+
+      # Init container: pulls the AI model before the main container starts
+      initContainers:
+        - name: pull-model
+          image: ollama/ollama:latest
+          command:
+            - /bin/sh
+            - -c
+            - |
+              # Start Ollama in background
+              ollama serve &
+              OLLAMA_PID=$!
+              
+              # Wait for Ollama to be ready
+              echo "Waiting for Ollama to start..."
+              sleep 10
+              
+              # Pull the Mistral model (small but capable)
+              echo "Pulling mistral model..."
+              ollama pull mistral
+              
+              echo "Model ready!"
+              kill $OLLAMA_PID
+          volumeMounts:
+            - name: ollama-storage
+              mountPath: /root/.ollama
+          resources:
+            requests:
+              memory: "2Gi"
+              cpu: "500m"
+            limits:
+              memory: "8Gi"
+              cpu: "2000m"

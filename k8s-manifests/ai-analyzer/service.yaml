@@ -1,0 +1,20 @@
+# -----------------------------------------------------------
+# Service for llm-analyzer
+# -----------------------------------------------------------
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: llm-analyzer-service
+  namespace: devops-platform
+  labels:
+    app: llm-analyzer
+spec:
+  type: ClusterIP
+  selector:
+    app: llm-analyzer
+  ports:
+    - name: http-api
+      port: 8080
+      targetPort: 8080
+      protocol: TCP

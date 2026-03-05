@@ -1,0 +1,39 @@
+# -----------------------------------------------------------
+# Service for log-generator
+# -----------------------------------------------------------
+# A Kubernetes Service gives your pods a stable network address.
+# Without a Service, pods have random IP addresses that change
+# every time they restart.
+#
+# With a Service:
+#   Other pods reach log-generator at: http://log-generator-service:5000
+#   This DNS name is stable regardless of pod restarts.
+# -----------------------------------------------------------
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: log-generator-service
+  namespace: devops-platform
+  labels:
+    app: log-generator
+spec:
+  # ClusterIP = only accessible within the cluster (internal service)
+  type: ClusterIP
+
+  # Route traffic to pods with this label
+  selector:
+    app: log-generator
+
+  # Map ports: traffic to port 5000 on the Service
+  # goes to port 5000 on the selected pods
+  ports:
+    - name: http-api
+      port: 5000         # Port clients connect to (on the Service)
+      targetPort: 5000   # Port on the actual Pod container
+      protocol: TCP
+
+    - name: metrics
+      port: 8000         # Prometheus scrapes this port on the Service
+      targetPort: 8000
+      protocol: TCP

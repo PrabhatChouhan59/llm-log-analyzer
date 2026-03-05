@@ -1,0 +1,165 @@
+{
+  "__comment": "Grafana Dashboard JSON for LLM DevOps Platform",
+  "__how_to_use": "In Grafana: Dashboards → Import → Paste this JSON",
+  "id": null,
+  "uid": "llm-devops-platform",
+  "title": "LLM DevOps Platform",
+  "tags": ["devops", "llm", "monitoring"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "refresh": "30s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "System Alert Level",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "expr": "system_alert_level",
+          "legendFormat": "Alert Level"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name",
+        "thresholds": {
+          "steps": [
+            { "color": "green", "value": null },
+            { "color": "yellow", "value": 1 },
+            { "color": "red", "value": 2 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "System Health Score",
+      "type": "gauge",
+      "gridPos": { "h": 4, "w": 4, "x": 4, "y": 0 },
+      "targets": [
+        {
+          "expr": "system_health_score",
+          "legendFormat": "Health Score"
+        }
+      ],
+      "options": {
+        "minValue": 0,
+        "maxValue": 100,
+        "thresholds": {
+          "steps": [
+            { "color": "red", "value": 0 },
+            { "color": "yellow", "value": 50 },
+            { "color": "green", "value": 80 }
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Total Log Entries by Level",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        {
+          "expr": "rate(log_entries_total[5m])",
+          "legendFormat": "{{level}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "ERROR" }, "properties": [{ "id": "color", "value": { "fixedColor": "red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "CRITICAL" }, "properties": [{ "id": "color", "value": { "fixedColor": "dark-red", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "WARNING" }, "properties": [{ "id": "color", "value": { "fixedColor": "yellow", "mode": "fixed" } }] },
+          { "matcher": { "id": "byName", "options": "INFO" }, "properties": [{ "id": "color", "value": { "fixedColor": "green", "mode": "fixed" } }] }
+        ]
+      }
+    },
+    {
+      "id": 4,
+      "title": "Memory Usage %",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "expr": "memory_usage_percent", "legendFormat": "Memory %" },
+        { "expr": "cpu_usage_percent", "legendFormat": "CPU %" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Active Connections",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 0, "y": 12 },
+      "targets": [
+        { "expr": "active_connections", "legendFormat": "Connections" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Error Rate %",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 8, "y": 12 },
+      "targets": [
+        { "expr": "error_rate_percent", "legendFormat": "Error Rate %" }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              { "color": "green", "value": 0 },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 15 }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "LLM Analysis Duration (seconds)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 8, "x": 16, "y": 12 },
+      "targets": [
+        { "expr": "llm_analysis_duration_seconds", "legendFormat": "Analysis Duration" }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Request Duration Percentiles (p50/p95/p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 18 },
+      "targets": [
+        { "expr": "histogram_quantile(0.50, rate(request_duration_seconds_bucket[5m]))", "legendFormat": "p50" },
+        { "expr": "histogram_quantile(0.95, rate(request_duration_seconds_bucket[5m]))", "legendFormat": "p95" },
+        { "expr": "histogram_quantile(0.99, rate(request_duration_seconds_bucket[5m]))", "legendFormat": "p99" }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "LLM Analyses Total",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 8, "y": 0 },
+      "targets": [
+        { "expr": "sum(llm_analyses_total)", "legendFormat": "Total Analyses" }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Logs Analyzed in Last Run",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 4, "x": 12, "y": 0 },
+      "targets": [
+        { "expr": "llm_logs_analyzed_count", "legendFormat": "Logs Analyzed" }
+      ]
+    }
+  ]
+}

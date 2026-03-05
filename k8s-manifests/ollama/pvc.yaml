@@ -1,0 +1,31 @@
+# -----------------------------------------------------------
+# PersistentVolumeClaim for Ollama model storage
+# -----------------------------------------------------------
+# Ollama downloads AI model files (they can be several GB!).
+# We need a PersistentVolume to store them so they survive pod restarts.
+# Without this, Ollama would re-download the model every restart.
+#
+# PVC = PersistentVolumeClaim: a request for storage.
+# Kubernetes finds available storage (PersistentVolume) and binds them.
+# -----------------------------------------------------------
+
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ollama-pvc
+  namespace: devops-platform
+  labels:
+    app: ollama
+spec:
+  # ReadWriteOnce = only one pod can write to this at a time
+  accessModes:
+    - ReadWriteOnce
+
+  resources:
+    requests:
+      # Request 20GB for model storage (Mistral ~4GB, leaves room for more)
+      storage: 20Gi
+
+  # Use the default StorageClass (kind clusters provide "standard")
+  # In cloud (GKE/EKS/AKS), this maps to SSD or HDD storage
+  # storageClassName: standard  # Uncomment if needed

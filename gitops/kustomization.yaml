@@ -1,0 +1,40 @@
+# -----------------------------------------------------------
+# Kustomization - Groups all manifests for ArgoCD
+# -----------------------------------------------------------
+# Kustomize is a tool built into kubectl that lets you:
+# 1. Bundle multiple YAML files together
+# 2. Apply patches or overrides without modifying originals
+# 3. Organize resources by environment (dev/staging/prod)
+#
+# ArgoCD uses Kustomize to know which files to apply.
+# When you add a new manifest, add it to the 'resources' list below.
+# -----------------------------------------------------------
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Which namespace to apply all resources to
+namespace: devops-platform
+
+# All manifest files that ArgoCD should apply to the cluster
+resources:
+  # Core namespace
+  - ../infrastructure/namespace/devops-platform.yaml
+
+  # Ollama (must be first - other services depend on it)
+  - ../infrastructure/ollama/pvc.yaml
+  - ../infrastructure/ollama/deployment.yaml
+  - ../infrastructure/ollama/service.yaml
+
+  # Log Generator
+  - ../infrastructure/log-generator/deployment.yaml
+  - ../infrastructure/log-generator/service.yaml
+
+  # LLM Analyzer
+  - ../infrastructure/llm-analyzer/deployment.yaml
+  - ../infrastructure/llm-analyzer/service.yaml
+
+# Common labels applied to ALL resources
+commonLabels:
+  app.kubernetes.io/part-of: llm-devops-platform
+  managed-by: argocd

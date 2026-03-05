@@ -1,4 +1,4 @@
-# 🤖 LLM DevOps Platform
+# 🤖 LLM log Analyze Platform
 
 > An AI-powered log analysis platform that uses a local LLM (Mistral via Ollama) to automatically analyze application logs and surface insights through a monitoring dashboard — all running in Kubernetes.
 
@@ -161,3 +161,4 @@ Configure Docker Hub credentials in GitHub Settings → Secrets:
 - [Ollama Models](https://ollama.ai/library) - Available AI models
 - [KIND Documentation](https://kind.sigs.k8s.io/) - Local Kubernetes clusters
 - [ArgoCD Documentation](https://argo-cd.readthedocs.io/) - GitOps with ArgoCD
+

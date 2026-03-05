@@ -1,0 +1,65 @@
+# -----------------------------------------------------------
+# Deployment for llm-analyzer service
+# -----------------------------------------------------------
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: llm-analyzer
+  namespace: devops-platform
+  labels:
+    app: llm-analyzer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: llm-analyzer
+  template:
+    metadata:
+      labels:
+        app: llm-analyzer
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+        - name: llm-analyzer
+          image: llm-analyzer:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http-api
+              containerPort: 8080
+          env:
+            # Point to Ollama service within the cluster
+            - name: OLLAMA_URL
+              value: "http://ollama-service.devops-platform.svc.cluster.local:11434"
+            # Point to log-generator service
+            - name: LOG_GENERATOR_URL
+              value: "http://log-generator-service.devops-platform.svc.cluster.local:5000"
+            # Which AI model to use (mistral is small and efficient)
+            - name: OLLAMA_MODEL
+              value: "mistral"
+            # How often to analyze logs (60 seconds)
+            - name: ANALYSIS_INTERVAL_SECONDS
+              value: "60"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 20
+            periodSeconds: 15

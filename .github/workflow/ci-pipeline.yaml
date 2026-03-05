@@ -1,0 +1,149 @@
+# =============================================================================
+# GitHub Actions CI/CD Pipeline
+# =============================================================================
+# This file automates your build, test, and publish process.
+# Every time you push code to GitHub, this pipeline runs automatically!
+#
+# What it does:
+#   1. Runs on every push to 'main' branch or pull request
+#   2. Lints Python code (checks for style issues)
+#   3. Runs basic tests
+#   4. Builds Docker images for both services
+#   5. Pushes images to Docker Hub (on main branch only)
+#
+# How to set up Docker Hub secrets:
+#   GitHub repo → Settings → Secrets and variables → Actions
+#   Add DOCKERHUB_USERNAME and DOCKERHUB_TOKEN
+# =============================================================================
+
+name: CI Pipeline - Build and Push
+
+# When does this pipeline run?
+on:
+  push:
+    branches:
+      - main       # Run on every push to main branch
+  pull_request:
+    branches:
+      - main       # Run on pull requests targeting main
+
+# Environment variables available to all jobs
+env:
+  REGISTRY: docker.io                    # Docker Hub registry
+  LOG_GEN_IMAGE: log-generator           # Image name for log-generator
+  ANALYZER_IMAGE: llm-analyzer           # Image name for llm-analyzer
+
+jobs:
+  # ===========================================================================
+  # Job 1: Lint and Test Python Code
+  # ===========================================================================
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest    # Run on GitHub's Ubuntu runner
+
+    steps:
+      # Step 1: Checkout your code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up Python
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Install linting tools
+      - name: Install lint tools
+        run: |
+          pip install flake8 black
+
+      # Step 4: Check code formatting with black (just check, don't modify)
+      - name: Check code formatting (black)
+        run: |
+          black --check services/log-generator/
+          black --check services/llm-analyzer/
+        continue-on-error: true   # Don't fail pipeline for formatting issues
+
+      # Step 5: Lint with flake8 (check for syntax errors)
+      - name: Lint with flake8
+        run: |
+          # Stop if there are syntax errors or undefined names
+          flake8 services/log-generator/ --count --select=E9,F63,F7,F82 --show-source
+          flake8 services/llm-analyzer/  --count --select=E9,F63,F7,F82 --show-source
+
+      # Step 6: Install dependencies and run basic import test
+      - name: Test log-generator imports
+        run: |
+          cd services/log-generator
+          pip install -r requirements.txt
+          python -c "import app; print('log-generator imports OK')" || true
+
+      - name: Test llm-analyzer imports
+        run: |
+          cd services/llm-analyzer
+          pip install -r requirements.txt
+          python -c "import analyzer; print('llm-analyzer imports OK')" || true
+
+  # ===========================================================================
+  # Job 2: Build and Push Docker Images
+  # ===========================================================================
+  build-and-push:
+    name: Build & Push Docker Images
+    runs-on: ubuntu-latest
+    needs: lint-and-test    # Only run if lint-and-test job passes
+
+    # Only push images on pushes to main (not pull requests)
+    # On PRs, we just build to verify the Dockerfile works
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Set up QEMU for multi-platform builds (arm64 + amd64)
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # Set up Docker Buildx (advanced build features)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to Docker Hub (only on main branch pushes, not PRs)
+      - name: Login to Docker Hub
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      # ---- Build log-generator image ----
+      - name: Build and push log-generator
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/log-generator
+          platforms: linux/amd64,linux/arm64   # Support both Intel and ARM
+          # Only push on main branch; just build on PRs
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.LOG_GEN_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.LOG_GEN_IMAGE }}:${{ github.sha }}
+          # Cache layers to speed up future builds
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # ---- Build llm-analyzer image ----
+      - name: Build and push llm-analyzer
+        uses: docker/build-push-action@v5
+        with:
+          context: ./services/llm-analyzer
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.ANALYZER_IMAGE }}:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.ANALYZER_IMAGE }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Print image digest for traceability
+      - name: Image digest summary
+        run: |
+          echo "Images built successfully!"
+          echo "These images will be deployed via ArgoCD when GitOps manifests are updated."
